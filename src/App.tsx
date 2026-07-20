@@ -26,6 +26,7 @@ import BUJPReports from "./pages/Security/BUJPReports";
 import CompetencyMonitoring from "./pages/Security/CompetencyMonitoring";
 import VisitorManagement from "./pages/Security/VisitorManagement";
 import VMSAdmin from "./pages/Security/VMSAdmin";
+import EptwPermitCheck from "./pages/Security/EptwPermitCheck";
 
 // User Management
 import UserManagement from "./pages/UserManagement/UserManagement";
@@ -148,6 +149,14 @@ const App = () => (
               <ProtectedRoute permission="visitor_requests.approve">
                 <TopNavigation>
                     <VMSAdmin />
+                </TopNavigation>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/security/eptw-check" element={
+              <ProtectedRoute permission="security_metrics.read">
+                <TopNavigation>
+                    <EptwPermitCheck />
                 </TopNavigation>
               </ProtectedRoute>
             } />

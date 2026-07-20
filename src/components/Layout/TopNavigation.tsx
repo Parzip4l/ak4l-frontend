@@ -118,6 +118,7 @@ export function TopNavigation({ children }: { children?: React.ReactNode }) {
         { title: "Kompetensi Personil", href: "/security/competency", permission: "security_metrics.read" },
         { title: "Visitor Management", href: "/security/vms", permission: "visitor_requests.read" },
         { title: "VMS Admin", href: "/security/vms-admin", permission: "visitor_requests.approve" }, 
+        { title: "Cek ePTW", href: "/security/eptw-check", permission: "security_metrics.read" },
       ],
     },
     {
