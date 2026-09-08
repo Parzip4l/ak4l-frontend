@@ -15,6 +15,7 @@ const initialForm: WalkInVisitorPayload = {
   visitor_company: "",
   purpose: "",
   host_name: "",
+  host_email: "",
   notes: "",
 };
 
@@ -43,11 +44,12 @@ export default function VisitorWalkIn() {
       visitor_company: form.visitor_company?.trim() || undefined,
       purpose: form.purpose.trim(),
       host_name: form.host_name?.trim() || undefined,
+      host_email: form.host_email.trim(),
       notes: form.notes?.trim() || undefined,
     };
 
-    if (!payload.visitor_name || !payload.purpose) {
-      toast({ title: "Data belum lengkap", description: "Nama visitor dan keperluan wajib diisi.", variant: "destructive" });
+    if (!payload.visitor_name || !payload.purpose || !payload.host_email) {
+      toast({ title: "Data belum lengkap", description: "Nama visitor, email host, dan keperluan wajib diisi.", variant: "destructive" });
       return;
     }
 
@@ -57,7 +59,7 @@ export default function VisitorWalkIn() {
       const response = await visitorInvitationApi.createWalkIn(token, payload);
       setForm(initialForm);
       setSuccessMessage(response.message || "Visitor walk-in berhasil dicatat.");
-      toast({ title: "Walk-in dicatat", description: "Visitor langsung masuk daftar monitoring." });
+      toast({ title: "Walk-in dikirim", description: "Data dikirim ke Portal untuk notifikasi host." });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Gagal mencatat visitor walk-in.";
       toast({ title: "Gagal menyimpan", description: message, variant: "destructive" });
@@ -71,7 +73,7 @@ export default function VisitorWalkIn() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Walk-in Visitor</h1>
-          <p className="text-sm sm:text-base text-white/90">Catat tamu tanpa undangan QR untuk kebutuhan operasional pos.</p>
+          <p className="text-sm sm:text-base text-white/90">Kirim data tamu tanpa QR ke Portal untuk notifikasi host.</p>
         </div>
         <Badge className="w-fit bg-white/20 text-white hover:bg-white/20">
           <UserPlus className="mr-2 h-4 w-4" />
@@ -85,7 +87,7 @@ export default function VisitorWalkIn() {
             <UserPlus className="h-5 w-5" />
             Data Visitor
           </CardTitle>
-          <CardDescription>Isi data yang diperlukan security. Visitor akan langsung berstatus di lokasi.</CardDescription>
+          <CardDescription>Isi data minimal. Portal akan mencatat walk-in dan mengirim notifikasi ke host tujuan.</CardDescription>
         </CardHeader>
         <CardContent>
           {successMessage && (
@@ -122,13 +124,26 @@ export default function VisitorWalkIn() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="host-name">Host / Tujuan</Label>
+              <Label htmlFor="host-name">Nama Host / Tujuan</Label>
               <Input
                 id="host-name"
                 value={form.host_name}
                 onChange={(event) => updateField("host_name", event.target.value)}
                 className="h-12 text-base"
                 placeholder="Nama pegawai/unit yang dituju"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="host-email">Email Host *</Label>
+              <Input
+                id="host-email"
+                type="email"
+                value={form.host_email}
+                onChange={(event) => updateField("host_email", event.target.value)}
+                className="h-12 text-base"
+                placeholder="nama.pegawai@lrtjakarta.co.id"
                 autoComplete="off"
               />
             </div>

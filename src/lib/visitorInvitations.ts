@@ -59,6 +59,7 @@ export type WalkInVisitorPayload = {
   visitor_company?: string;
   purpose: string;
   host_name?: string;
+  host_email: string;
   notes?: string;
 };
 
