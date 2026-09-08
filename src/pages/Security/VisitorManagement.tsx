@@ -18,13 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
   VisitorInvitation,
   VisitorInvitationError,
   VisitorInvitationResponse,
-  VisitorLocation,
   visitorInvitationApi,
 } from "@/lib/visitorInvitations";
 
@@ -79,10 +77,6 @@ export default function VisitorManagement() {
   const scanLoopRef = useRef<number | null>(null);
   const lastScannedRef = useRef("");
 
-  const [locations, setLocations] = useState<VisitorLocation[]>([]);
-  const [selectedLocationId, setSelectedLocationId] = useState("");
-  const [locationsLoading, setLocationsLoading] = useState(true);
-  const [locationsError, setLocationsError] = useState("");
   const [qrInput, setQrInput] = useState("");
   const [activeQr, setActiveQr] = useState("");
   const [result, setResult] = useState<VisitorInvitationResponse | null>(null);
@@ -91,7 +85,6 @@ export default function VisitorManagement() {
   const [cameraError, setCameraError] = useState("");
 
   const token = localStorage.getItem("token");
-  const selectedLocation = locations.find((location) => location.id === selectedLocationId);
   const invitation = result?.invitation;
   const status = invitation?.status || "";
   const members = normalizeMembers(invitation?.members);
@@ -117,33 +110,6 @@ export default function VisitorManagement() {
     setCameraError("");
   }, [stopCamera]);
 
-  const loadLocations = useCallback(async () => {
-    if (!token) {
-      setLocationsLoading(false);
-      setLocationsError("Sesi tidak ditemukan. Silakan login ulang.");
-      return;
-    }
-
-    setLocationsLoading(true);
-    setLocationsError("");
-
-    try {
-      const data = await visitorInvitationApi.locations(token);
-      setLocations(data);
-      setSelectedLocationId((current) => current || data[0]?.id || "");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Gagal memuat lokasi visitor.";
-      setLocationsError(message);
-      toast({ title: "Lokasi gagal dimuat", description: message, variant: "destructive" });
-    } finally {
-      setLocationsLoading(false);
-    }
-  }, [toast, token]);
-
-  useEffect(() => {
-    loadLocations();
-  }, [loadLocations]);
-
   useEffect(() => stopCamera, [stopCamera]);
 
   const submitQr = useCallback(
@@ -152,11 +118,6 @@ export default function VisitorManagement() {
 
       if (!token) {
         toast({ title: "Sesi tidak ditemukan", description: "Silakan login ulang untuk melanjutkan.", variant: "destructive" });
-        return;
-      }
-
-      if (!selectedLocationId) {
-        toast({ title: "Lokasi belum dipilih", description: "Pilih lokasi aktif sebelum scan QR visitor.", variant: "destructive" });
         return;
       }
 
@@ -172,7 +133,7 @@ export default function VisitorManagement() {
       setActiveQr(qr);
 
       try {
-        const response = await visitorInvitationApi.verifyQr(token, { qr, location_id: selectedLocationId });
+        const response = await visitorInvitationApi.verifyQr(token, { qr });
         setResult(response);
 
         if (!response.valid) {
@@ -194,7 +155,7 @@ export default function VisitorManagement() {
         setScanState("idle");
       }
     },
-    [selectedLocationId, toast, token],
+    [toast, token],
   );
 
   const handleManualSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -203,12 +164,12 @@ export default function VisitorManagement() {
   };
 
   const runOperationalAction = async (action: "check-in" | "check-out") => {
-    if (!token || !activeQr || !selectedLocationId) return;
+    if (!token || !activeQr) return;
 
     setScanState(action === "check-in" ? "checking-in" : "checking-out");
 
     try {
-      const payload = { qr: activeQr, location_id: selectedLocationId };
+      const payload = { qr: activeQr };
       const response =
         action === "check-in"
           ? await visitorInvitationApi.checkIn(token, payload)
@@ -292,7 +253,7 @@ export default function VisitorManagement() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Scan Visitor</h1>
-          <p className="text-sm sm:text-base text-white/90">Validasi QR, check-in, dan check-out tamu.</p>
+          <p className="text-sm sm:text-base text-white/90">Scan QR, lalu sistem membaca tujuan kunjungan dari invitation.</p>
         </div>
         <Badge className="w-fit bg-white/20 text-white hover:bg-white/20">
           <ShieldCheck className="mr-2 h-4 w-4" />
@@ -307,36 +268,9 @@ export default function VisitorManagement() {
               <ScanLine className="h-5 w-5" />
               Pos Scan
             </CardTitle>
-            <CardDescription>Pilih lokasi, lalu scan QR visitor.</CardDescription>
+            <CardDescription>Scan QR visitor dari email atau portal.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="visitor-location">Lokasi</Label>
-              <Select
-                value={selectedLocationId}
-                onValueChange={(value) => {
-                  setSelectedLocationId(value);
-                  resetScan();
-                }}
-                disabled={locationsLoading || isBusy}
-              >
-                <SelectTrigger id="visitor-location" className="h-12 text-base">
-                  <SelectValue placeholder={locationsLoading ? "Memuat lokasi..." : "Pilih lokasi"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {locationsError && <p className="text-sm text-destructive">{locationsError}</p>}
-              {!locationsLoading && !locationsError && locations.length === 0 && (
-                <p className="text-sm text-muted-foreground">Belum ada lokasi aktif.</p>
-              )}
-            </div>
-
             <div className="overflow-hidden rounded-lg border bg-black">
               <video ref={videoRef} className="aspect-[4/3] w-full object-cover sm:aspect-video" muted playsInline />
             </div>
@@ -365,7 +299,7 @@ export default function VisitorManagement() {
                   className="h-12 text-base"
                 />
               </div>
-              <Button type="submit" variant="outline" className="h-12 w-full" disabled={isBusy || !selectedLocationId}>
+              <Button type="submit" variant="outline" className="h-12 w-full" disabled={isBusy}>
                 {scanState === "verifying" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BadgeCheck className="mr-2 h-4 w-4" />}
                 Validasi QR
               </Button>
@@ -386,7 +320,7 @@ export default function VisitorManagement() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-lg">Hasil Validasi</CardTitle>
-                <CardDescription>{selectedLocation?.name || "Lokasi belum dipilih"}</CardDescription>
+                <CardDescription>Lokasi dan area mengikuti data invitation.</CardDescription>
               </div>
               {invitation && getStatusBadge(status)}
             </div>
@@ -430,7 +364,7 @@ export default function VisitorManagement() {
                 <div className="grid grid-cols-2 gap-3">
                   <Info label="Jumlah" value={`${invitation.visitor_count || 1} orang`} />
                   <Info label="Host" value={invitation.host || "-"} />
-                  <Info label="Lokasi" value={invitation.location || selectedLocation?.name || "-"} />
+                  <Info label="Lokasi" value={invitation.location || "-"} />
                   <Info label="Area" value={invitation.area || "-"} />
                 </div>
 

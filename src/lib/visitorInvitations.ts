@@ -68,7 +68,7 @@ export class VisitorInvitationError extends Error {
 
 type ApiPayload = {
   qr: string;
-  location_id: string;
+  location_id?: string;
 };
 
 const messageByStatus = (status: number) => {
