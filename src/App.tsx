@@ -25,6 +25,7 @@ import SecurityAdmin from "./pages/Security/SecurityAdmin";
 import BUJPReports from "./pages/Security/BUJPReports";
 import CompetencyMonitoring from "./pages/Security/CompetencyMonitoring";
 import VisitorManagement from "./pages/Security/VisitorManagement";
+import VisitorMonitoring from "./pages/Security/VisitorMonitoring";
 import VMSAdmin from "./pages/Security/VMSAdmin";
 import EptwPermitCheck from "./pages/Security/EptwPermitCheck";
 
@@ -141,6 +142,14 @@ const App = () => (
               <ProtectedRoute permission="visitor_requests.read">
                 <TopNavigation>
                     <VisitorManagement />
+                </TopNavigation>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/security/visitor-monitoring" element={
+              <ProtectedRoute permission="visitor_requests.read">
+                <TopNavigation>
+                    <VisitorMonitoring />
                 </TopNavigation>
               </ProtectedRoute>
             } />

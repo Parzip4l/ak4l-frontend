@@ -35,6 +35,25 @@ export type VisitorInvitationResponse = {
   invitation?: VisitorInvitation;
 };
 
+export type ActiveVisitor = {
+  id: number | string;
+  visitor_name?: string;
+  visitor_company?: string;
+  purpose?: string;
+  visit_date?: string;
+  status?: string;
+  notes?: string;
+  host?: {
+    name?: string;
+    email?: string;
+  } | null;
+};
+
+export type ActiveVisitorsResponse = {
+  date?: string;
+  active_visitors?: ActiveVisitor[];
+};
+
 export class VisitorInvitationError extends Error {
   status: number;
   retryable: boolean;
@@ -135,5 +154,14 @@ export const visitorInvitationApi = {
 
   checkOut(token: string, payload: ApiPayload) {
     return postQrAction("/visitor-invitations/check-out", token, payload);
+  },
+
+  async activeVisitors(token: string): Promise<ActiveVisitorsResponse> {
+    const payload = await apiRequest<ActiveVisitorsResponse>("/visitor-requests/active", token);
+
+    return {
+      date: payload.date,
+      active_visitors: Array.isArray(payload.active_visitors) ? payload.active_visitors : [],
+    };
   },
 };

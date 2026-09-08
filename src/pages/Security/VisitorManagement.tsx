@@ -2,17 +2,14 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   BadgeCheck,
-  Building2,
   Camera,
   CheckCircle2,
   LogIn,
   LogOut,
   Loader2,
-  MapPin,
   RefreshCcw,
   ScanLine,
   ShieldCheck,
-  Users,
   XCircle,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,7 +19,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   VisitorInvitation,
@@ -47,12 +43,21 @@ declare global {
 const QR_PATTERN = /^AK4L\|VIS\|[a-fA-F0-9]{64}$/;
 
 const statusLabel: Record<string, string> = {
-  READY_FOR_CHECKIN: "Siap Check-in",
-  CHECKED_IN: "Sudah Check-in",
-  CHECKED_OUT: "Sudah Check-out",
+  READY_FOR_CHECKIN: "Siap check-in",
+  CHECKED_IN: "Sedang di lokasi",
+  CHECKED_OUT: "Sudah check-out",
   CANCELLED: "Dibatalkan",
   EXPIRED: "Expired",
   NO_SHOW: "No-show",
+};
+
+const getStatusBadge = (status: string) => {
+  if (status === "READY_FOR_CHECKIN") return <Badge variant="warning">{statusLabel[status]}</Badge>;
+  if (status === "CHECKED_IN") return <Badge variant="success">{statusLabel[status]}</Badge>;
+  if (status === "CHECKED_OUT") return <Badge variant="secondary">{statusLabel[status]}</Badge>;
+  if (["CANCELLED", "EXPIRED", "NO_SHOW"].includes(status)) return <Badge variant="destructive">{statusLabel[status]}</Badge>;
+
+  return <Badge variant="outline">{statusLabel[status] || status || "Tidak diketahui"}</Badge>;
 };
 
 const normalizeMembers = (members?: VisitorInvitation["members"]) => {
@@ -65,17 +70,6 @@ const normalizeMembers = (members?: VisitorInvitation["members"]) => {
       return "";
     })
     .filter(Boolean);
-};
-
-const getStatusBadge = (status: string) => {
-  if (status === "READY_FOR_CHECKIN") return <Badge variant="warning">{statusLabel[status]}</Badge>;
-  if (status === "CHECKED_IN") return <Badge variant="success">{statusLabel[status]}</Badge>;
-  if (status === "CHECKED_OUT") return <Badge variant="secondary">{statusLabel[status]}</Badge>;
-  if (["CANCELLED", "EXPIRED", "NO_SHOW"].includes(status)) {
-    return <Badge variant="destructive">{statusLabel[status] || status}</Badge>;
-  }
-
-  return <Badge variant="outline">{statusLabel[status] || status || "Tidak diketahui"}</Badge>;
 };
 
 export default function VisitorManagement() {
@@ -140,11 +134,7 @@ export default function VisitorManagement() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Gagal memuat lokasi visitor.";
       setLocationsError(message);
-      toast({
-        title: "Lokasi gagal dimuat",
-        description: message,
-        variant: "destructive",
-      });
+      toast({ title: "Lokasi gagal dimuat", description: message, variant: "destructive" });
     } finally {
       setLocationsLoading(false);
     }
@@ -161,35 +151,19 @@ export default function VisitorManagement() {
       const qr = rawQr.trim();
 
       if (!token) {
-        toast({
-          title: "Sesi tidak ditemukan",
-          description: "Silakan login ulang untuk melanjutkan.",
-          variant: "destructive",
-        });
+        toast({ title: "Sesi tidak ditemukan", description: "Silakan login ulang untuk melanjutkan.", variant: "destructive" });
         return;
       }
 
       if (!selectedLocationId) {
-        toast({
-          title: "Lokasi belum dipilih",
-          description: "Pilih lokasi aktif sebelum scan QR visitor.",
-          variant: "destructive",
-        });
+        toast({ title: "Lokasi belum dipilih", description: "Pilih lokasi aktif sebelum scan QR visitor.", variant: "destructive" });
         return;
       }
 
       if (!QR_PATTERN.test(qr)) {
-        const invalidResult = {
-          valid: false,
-          message: "Format QR visitor tidak valid.",
-        };
-        setResult(invalidResult);
+        setResult({ valid: false, message: "Format QR visitor tidak valid." });
         setActiveQr("");
-        toast({
-          title: "QR tidak valid",
-          description: invalidResult.message,
-          variant: "destructive",
-        });
+        toast({ title: "QR tidak valid", description: "Format QR visitor tidak valid.", variant: "destructive" });
         return;
       }
 
@@ -198,10 +172,7 @@ export default function VisitorManagement() {
       setActiveQr(qr);
 
       try {
-        const response = await visitorInvitationApi.verifyQr(token, {
-          qr,
-          location_id: selectedLocationId,
-        });
+        const response = await visitorInvitationApi.verifyQr(token, { qr, location_id: selectedLocationId });
         setResult(response);
 
         if (!response.valid) {
@@ -213,12 +184,9 @@ export default function VisitorManagement() {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Gagal memvalidasi QR visitor.";
-        setResult({
-          valid: false,
-          message,
-        });
+        setResult({ valid: false, message });
         toast({
-          title: error instanceof VisitorInvitationError && error.retryable ? "Validasi perlu dicoba ulang" : "Validasi gagal",
+          title: error instanceof VisitorInvitationError && error.retryable ? "Coba ulang" : "Validasi gagal",
           description: message,
           variant: "destructive",
         });
@@ -240,10 +208,11 @@ export default function VisitorManagement() {
     setScanState(action === "check-in" ? "checking-in" : "checking-out");
 
     try {
+      const payload = { qr: activeQr, location_id: selectedLocationId };
       const response =
         action === "check-in"
-          ? await visitorInvitationApi.checkIn(token, { qr: activeQr, location_id: selectedLocationId })
-          : await visitorInvitationApi.checkOut(token, { qr: activeQr, location_id: selectedLocationId });
+          ? await visitorInvitationApi.checkIn(token, payload)
+          : await visitorInvitationApi.checkOut(token, payload);
 
       setResult(response);
       toast({
@@ -252,11 +221,7 @@ export default function VisitorManagement() {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Aksi visitor gagal diproses.";
-      setResult((current) => ({
-        valid: false,
-        message,
-        invitation: current?.invitation,
-      }));
+      setResult((current) => ({ valid: false, message, invitation: current?.invitation }));
       toast({
         title: action === "check-in" ? "Check-in gagal" : "Check-out gagal",
         description: message,
@@ -276,10 +241,7 @@ export default function VisitorManagement() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -305,7 +267,7 @@ export default function VisitorManagement() {
             return;
           }
         } catch {
-          setCameraError("Kamera aktif, tetapi QR belum bisa dibaca. Arahkan ulang atau gunakan input manual.");
+          setCameraError("QR belum terbaca. Arahkan ulang atau pakai input manual.");
         }
 
         scanLoopRef.current = window.requestAnimationFrame(scanFrame);
@@ -318,21 +280,19 @@ export default function VisitorManagement() {
     }
   };
 
-  const detailItems = [
-    ["Visitor", invitation?.visitor_name || "-"],
-    ["Perusahaan", invitation?.visitor_company || "-"],
-    ["Jumlah", `${invitation?.visitor_count || 1} visitor`],
-    ["Host", invitation?.host || "-"],
-    ["Lokasi", invitation?.location || selectedLocation?.name || "-"],
-    ["Area", invitation?.area || "-"],
-  ];
+  const primaryAction =
+    status === "READY_FOR_CHECKIN"
+      ? { label: "Check-in Visitor", icon: LogIn, onClick: () => runOperationalAction("check-in"), loading: scanState === "checking-in" }
+      : status === "CHECKED_IN"
+        ? { label: "Check-out Visitor", icon: LogOut, onClick: () => runOperationalAction("check-out"), loading: scanState === "checking-out" }
+        : null;
 
   return (
-    <div className="container mx-auto p-6 space-y-8 relative">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 relative">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Visitor Invitation Checkpoint</h1>
-          <p className="text-white mt-1">Scan QR invitation Intranet untuk validasi check-in dan check-out visitor.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Scan Visitor</h1>
+          <p className="text-sm sm:text-base text-white/90">Validasi QR, check-in, dan check-out tamu.</p>
         </div>
         <Badge className="w-fit bg-white/20 text-white hover:bg-white/20">
           <ShieldCheck className="mr-2 h-4 w-4" />
@@ -340,18 +300,18 @@ export default function VisitorManagement() {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="surface-1 lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-4">
+        <Card className="surface-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <ScanLine className="h-5 w-5" />
-              Scan QR Visitor
+              Pos Scan
             </CardTitle>
-            <CardDescription>Pilih lokasi aktif lalu scan QR invitation dari email atau public portal.</CardDescription>
+            <CardDescription>Pilih lokasi, lalu scan QR visitor.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="visitor-location">Lokasi Aktif</Label>
+              <Label htmlFor="visitor-location">Lokasi</Label>
               <Select
                 value={selectedLocationId}
                 onValueChange={(value) => {
@@ -360,7 +320,7 @@ export default function VisitorManagement() {
                 }}
                 disabled={locationsLoading || isBusy}
               >
-                <SelectTrigger id="visitor-location">
+                <SelectTrigger id="visitor-location" className="h-12 text-base">
                   <SelectValue placeholder={locationsLoading ? "Memuat lokasi..." : "Pilih lokasi"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -373,13 +333,28 @@ export default function VisitorManagement() {
               </Select>
               {locationsError && <p className="text-sm text-destructive">{locationsError}</p>}
               {!locationsLoading && !locationsError && locations.length === 0 && (
-                <p className="text-sm text-muted-foreground">Belum ada lokasi visitor aktif dari Intranet.</p>
+                <p className="text-sm text-muted-foreground">Belum ada lokasi aktif.</p>
               )}
+            </div>
+
+            <div className="overflow-hidden rounded-lg border bg-black">
+              <video ref={videoRef} className="aspect-[4/3] w-full object-cover sm:aspect-video" muted playsInline />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button type="button" className="h-12" onClick={cameraActive ? stopCamera : startCamera} disabled={isBusy}>
+                <Camera className="mr-2 h-4 w-4" />
+                {cameraActive ? "Stop" : "Scan Kamera"}
+              </Button>
+              <Button type="button" variant="outline" className="h-12" onClick={resetScan} disabled={isBusy}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Reset
+              </Button>
             </div>
 
             <form onSubmit={handleManualSubmit} className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="visitor-qr">QR Token</Label>
+                <Label htmlFor="visitor-qr">Input Manual</Label>
                 <Input
                   id="visitor-qr"
                   value={qrInput}
@@ -387,209 +362,129 @@ export default function VisitorManagement() {
                   placeholder="AK4L|VIS|..."
                   autoComplete="off"
                   disabled={isBusy}
+                  className="h-12 text-base"
                 />
               </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-primary hover:opacity-90"
-                disabled={isBusy || !selectedLocationId}
-              >
-                {scanState === "verifying" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Memvalidasi...
-                  </>
-                ) : (
-                  <>
-                    <BadgeCheck className="mr-2 h-4 w-4" />
-                    Validasi QR
-                  </>
-                )}
+              <Button type="submit" variant="outline" className="h-12 w-full" disabled={isBusy || !selectedLocationId}>
+                {scanState === "verifying" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BadgeCheck className="mr-2 h-4 w-4" />}
+                Validasi QR
               </Button>
             </form>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button type="button" variant="outline" onClick={cameraActive ? stopCamera : startCamera} disabled={isBusy}>
-                <Camera className="mr-2 h-4 w-4" />
-                {cameraActive ? "Stop" : "Kamera"}
-              </Button>
-              <Button type="button" variant="outline" onClick={resetScan} disabled={isBusy}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Reset
-              </Button>
-            </div>
-
-            <div className="overflow-hidden rounded-lg border bg-muted/30">
-              <video ref={videoRef} className="aspect-video w-full bg-black object-cover" muted playsInline />
-            </div>
 
             {cameraError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Scanner kamera</AlertTitle>
+                <AlertTitle>Scanner</AlertTitle>
                 <AlertDescription>{cameraError}</AlertDescription>
               </Alert>
             )}
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-6">
-          {!result && (
-            <Card className="surface-1">
-              <CardContent className="p-8">
-                <div className="flex min-h-[260px] flex-col items-center justify-center text-center text-muted-foreground">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary">
-                    <ShieldCheck className="h-7 w-7 text-primary" />
-                  </div>
-                  <p className="text-lg font-medium text-foreground">Hasil validasi akan tampil di sini</p>
-                  <p className="mt-2 max-w-md text-sm">
-                    AK4L hanya mengirim token QR opaque ke Intranet. Data visitor ditampilkan dari hasil validasi backend.
-                  </p>
+        <Card className="surface-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">Hasil Validasi</CardTitle>
+                <CardDescription>{selectedLocation?.name || "Lokasi belum dipilih"}</CardDescription>
+              </div>
+              {invitation && getStatusBadge(status)}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!result && (
+              <div className="flex min-h-[260px] flex-col items-center justify-center text-center text-muted-foreground">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+                  <ScanLine className="h-8 w-8 text-primary" />
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <p className="text-lg font-semibold text-foreground">Belum ada QR discan</p>
+                <p className="mt-1 max-w-sm text-sm">Arahkan kamera ke QR invitation atau tempel token manual.</p>
+              </div>
+            )}
 
-          {result && (
-            <Card className="surface-1">
-              <CardHeader>
+            {result && !invitation && (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertTitle>QR ditolak</AlertTitle>
+                <AlertDescription>{result.message || "QR invalid, expired, cancelled, lokasi salah, atau waktu tidak sesuai."}</AlertDescription>
+              </Alert>
+            )}
+
+            {invitation && (
+              <>
                 <div
-                  className={`flex items-start gap-3 rounded-lg border p-4 ${
-                    result.valid ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"
+                  className={`rounded-lg border p-4 ${
+                    result?.valid ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-900"
                   }`}
                 >
-                  {result.valid ? (
-                    <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" />
-                  ) : (
-                    <XCircle className="mt-0.5 h-6 w-6 shrink-0" />
-                  )}
-                  <div>
-                    <CardTitle className="text-xl">{result.valid ? "Invitation valid" : "Invitation ditolak"}</CardTitle>
-                    <CardDescription className={result.valid ? "text-green-700" : "text-red-700"}>
-                      {result.message || (result.valid ? "Visitor dapat diproses sesuai status terbaru." : "QR tidak dapat dipakai.")}
-                    </CardDescription>
+                  <div className="flex items-start gap-3">
+                    {result?.valid ? <CheckCircle2 className="mt-1 h-6 w-6 shrink-0" /> : <XCircle className="mt-1 h-6 w-6 shrink-0" />}
+                    <div>
+                      <p className="text-sm font-medium">{invitation.invitation_number || "Invitation"}</p>
+                      <p className="text-2xl font-bold leading-tight">{invitation.visitor_name || "-"}</p>
+                      <p className="text-sm">{invitation.visitor_company || "Perusahaan tidak tercatat"}</p>
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
 
-              <CardContent className="space-y-6">
-                {invitation ? (
-                  <>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Nomor Invitation</p>
-                        <p className="text-2xl font-bold text-foreground">{invitation.invitation_number || "-"}</p>
-                      </div>
-                      <div className="flex items-center gap-2">{getStatusBadge(status)}</div>
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Info label="Jumlah" value={`${invitation.visitor_count || 1} orang`} />
+                  <Info label="Host" value={invitation.host || "-"} />
+                  <Info label="Lokasi" value={invitation.location || selectedLocation?.name || "-"} />
+                  <Info label="Area" value={invitation.area || "-"} />
+                </div>
 
-                    <Separator />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {detailItems.map(([label, value]) => (
-                        <div key={label} className="rounded-lg border bg-background p-4">
-                          <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-                          <p className="mt-1 text-base font-semibold text-foreground">{value}</p>
-                        </div>
+                {members.length > 0 && (
+                  <div className="rounded-lg border bg-background p-4">
+                    <p className="mb-2 text-sm font-semibold">Anggota Group</p>
+                    <div className="flex flex-wrap gap-2">
+                      {members.map((member) => (
+                        <Badge key={member} variant="secondary">
+                          {member}
+                        </Badge>
                       ))}
                     </div>
+                  </div>
+                )}
 
-                    {members.length > 0 && (
-                      <div className="rounded-lg border bg-background p-4">
-                        <div className="mb-3 flex items-center gap-2">
-                          <Users className="h-4 w-4 text-primary" />
-                          <p className="font-semibold">Anggota Group</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {members.map((member) => (
-                            <Badge key={member} variant="secondary">
-                              {member}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {invitation.notes && (
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Catatan Security</AlertTitle>
-                        <AlertDescription>{invitation.notes}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-medium">{selectedLocation?.name || "Lokasi AK4L"}</p>
-                          <p className="text-sm text-muted-foreground">Aksi akan direvalidasi atomic oleh Intranet.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        {status === "READY_FOR_CHECKIN" && result.valid && (
-                          <Button onClick={() => runOperationalAction("check-in")} disabled={isBusy}>
-                            {scanState === "checking-in" ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <LogIn className="mr-2 h-4 w-4" />
-                            )}
-                            Check-in
-                          </Button>
-                        )}
-                        {status === "CHECKED_IN" && result.valid && (
-                          <Button onClick={() => runOperationalAction("check-out")} disabled={isBusy}>
-                            {scanState === "checking-out" ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <LogOut className="mr-2 h-4 w-4" />
-                            )}
-                            Check-out
-                          </Button>
-                        )}
-                        {!["READY_FOR_CHECKIN", "CHECKED_IN"].includes(status) && (
-                          <Badge variant="outline" className="justify-center py-2">
-                            Tidak ada aksi operasional
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <Alert variant="destructive">
+                {invitation.notes && (
+                  <Alert>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>QR tidak dapat dipakai</AlertTitle>
-                    <AlertDescription>{result.message || "QR invalid, expired, cancelled, lokasi salah, atau waktu tidak sesuai."}</AlertDescription>
+                    <AlertTitle>Catatan Security</AlertTitle>
+                    <AlertDescription>{invitation.notes}</AlertDescription>
                   </Alert>
                 )}
-              </CardContent>
-            </Card>
-          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="surface-1">
-              <CardContent className="flex items-start gap-3 p-5">
-                <Building2 className="mt-1 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-semibold">Lokasi dari Intranet</p>
-                  <p className="text-sm text-muted-foreground">Daftar lokasi aktif diambil dari API, bukan hardcode di AK4L.</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="surface-1">
-              <CardContent className="flex items-start gap-3 p-5">
-                <ShieldCheck className="mt-1 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-semibold">Token QR tidak disimpan</p>
-                  <p className="text-sm text-muted-foreground">QR hanya disimpan sementara di memori selama proses validasi operasional.</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                {primaryAction ? (
+                  <Button className="h-14 w-full text-base" onClick={primaryAction.onClick} disabled={isBusy || !result?.valid}>
+                    {primaryAction.loading ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <primaryAction.icon className="mr-2 h-5 w-5" />
+                    )}
+                    {primaryAction.label}
+                  </Button>
+                ) : (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Tidak ada aksi</AlertTitle>
+                    <AlertDescription>Status saat ini tidak membuka aksi check-in atau check-out.</AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold text-foreground sm:text-base">{value}</p>
     </div>
   );
 }

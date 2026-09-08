@@ -169,9 +169,9 @@ export default function Dashboard() {
       color: "bg-blue-100 text-blue-700",
     },
     {
-      title: "Visitor Management",
-      description: "Kelola kunjungan tamu",
-      href: isAdmin ? "/security/vms-admin" : "/security/vms",
+      title: "Scan Visitor",
+      description: "Check-in dan check-out tamu",
+      href: "/security/vms",
       icon: Users,
       color: "bg-purple-100 text-purple-700",
     },
@@ -368,4 +368,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
