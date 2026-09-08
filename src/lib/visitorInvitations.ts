@@ -54,6 +54,14 @@ export type ActiveVisitorsResponse = {
   active_visitors?: ActiveVisitor[];
 };
 
+export type WalkInVisitorPayload = {
+  visitor_name: string;
+  visitor_company?: string;
+  purpose: string;
+  host_name?: string;
+  notes?: string;
+};
+
 export class VisitorInvitationError extends Error {
   status: number;
   retryable: boolean;
@@ -163,5 +171,12 @@ export const visitorInvitationApi = {
       date: payload.date,
       active_visitors: Array.isArray(payload.active_visitors) ? payload.active_visitors : [],
     };
+  },
+
+  createWalkIn(token: string, payload: WalkInVisitorPayload) {
+    return apiRequest<{ message?: string; visitor?: ActiveVisitor }>("/visitor-requests/walk-in", token, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 };

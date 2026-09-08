@@ -117,6 +117,7 @@ export function TopNavigation({ children }: { children?: React.ReactNode }) {
         { title: "Laporan BUJP", href: "/security/bujp-reports", permission: "security_metrics.read" },
         { title: "Kompetensi Personil", href: "/security/competency", permission: "security_metrics.read" },
         { title: "Scan Visitor", href: "/security/vms", permission: "visitor_requests.read" },
+        { title: "Walk-in Visitor", href: "/security/visitor-walk-in", permission: "visitor_requests.read" },
         { title: "Monitoring Visitor", href: "/security/visitor-monitoring", permission: "visitor_requests.read" },
         { title: "VMS Admin", href: "/security/vms-admin", permission: "visitor_requests.approve" }, 
         { title: "Cek ePTW", href: "/security/eptw-check", permission: "security_metrics.read" },
